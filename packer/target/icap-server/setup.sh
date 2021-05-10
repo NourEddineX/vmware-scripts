@@ -155,12 +155,20 @@ kubectl create -n management-ui secret generic smtpsecret \
 
 cd ..
 
-# deploy monitoring solution
-git clone https://github.com/k8-proxy/k8-rebuild.git && cd k8-rebuild
-helm install sow-monitoring monitoring --set monitoring.elasticsearch.host=$MONITORING_IP --set monitoring.elasticsearch.username=$MONITORING_USER --set monitoring.elasticsearch.password=$MONITORING_PASSWORD
+# install cs-k8s-api
+INSTALL_CSAPI=${INSTALL_CSAPI:-true}
+CS_API_IMAGE=${CS_API_IMAGE:-glasswallsolutions/cs-k8s-api:latest}
+if [[ "${INSTALL_CSAPI}" -eq "true" ]]; then
+	wget https://raw.githubusercontent.com/k8-proxy/cs-k8s-api/main/deployment.yaml
+	sudo docker pull $CS_API_IMAGE
+	CS_IMAGE_VERSION=$(echo $CS_API_IMAGE | cut -d":" -f2)
+	sudo docker tag $CS_API_IMAGE localhost:30500/cs-k8s-api:$CS_IMAGE_VERSION
+	sudo docker push localhost:30500/cs-k8s-api:$CS_IMAGE_VERSION
+	sed -i 's|glasswallsolutions/cs-k8s-api:.*|localhost:30500/cs-k8s-api:'$CS_IMAGE_VERSION'|' deployment.yaml
+	kubectl apply -f deployment.yaml -n icap-adaptation
+fi
+# install filedrop UI
 
-# wait until the pods are up
-# sleep 120s
 
 # allow password login (useful when deployed to esxi)
 SSH_PASSWORD=${SSH_PASSWORD:-glasswall}

@@ -158,7 +158,7 @@ cd ..
 # install cs-k8s-api
 INSTALL_CSAPI=${INSTALL_CSAPI:-true}
 CS_API_IMAGE=${CS_API_IMAGE:-glasswallsolutions/cs-k8s-api:latest}
-if [[ "${INSTALL_CSAPI}" -eq "true" ]]; then
+if [[ "${INSTALL_CSAPI}" == "true" ]]; then
 	wget https://raw.githubusercontent.com/k8-proxy/cs-k8s-api/main/deployment.yaml
 	sudo docker pull $CS_API_IMAGE
 	CS_IMAGE_VERSION=$(echo $CS_API_IMAGE | cut -d":" -f2)
@@ -169,7 +169,7 @@ if [[ "${INSTALL_CSAPI}" -eq "true" ]]; then
 fi
 # install filedrop UI
 INSTALL_FILEDROP_UI=${INSTALL_FILEDROP_UI:-true}
-if [[ "${INSTALL_FILEDROP_UI}" -eq "true" ]]; then
+if [[ "${INSTALL_FILEDROP_UI}" == "true" ]]; then
 	# install filedrop
 	# get source code
 	git clone https://github.com/k8-proxy/k8-rebuild.git --branch ck8s-filedrop --recursive && cd k8-rebuild && git submodule update --init --recursive && git submodule foreach git pull origin main && cd k8-rebuild-rest-api && git pull origin main && cd libs/ && git pull origin master && cd ../../
@@ -197,3 +197,9 @@ printf "${SSH_PASSWORD}\n${SSH_PASSWORD}" | sudo passwd ubuntu
 sudo sed -i "s/.*PasswordAuthentication.*/PasswordAuthentication yes/g" /etc/ssh/sshd_config
 sudo service ssh restart
 
+# install vmware-guestinfo when generating OVA
+CREATE_OVA=${CREATE_OVA:-false}
+if [[ "$CREATE_OVA" == "true" ]]; then
+	echo $CREATE_OVA
+	curl -sSL https://raw.githubusercontent.com/vmware/cloud-init-vmware-guestinfo/master/install.sh | sudo sh -
+fi

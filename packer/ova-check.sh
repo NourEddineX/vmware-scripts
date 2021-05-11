@@ -21,3 +21,7 @@ echo "Upload Completed !!!"
 BUCKET=$(cat ova-export.json | jq -r .S3Bucket)
 OBJECT="$(aws s3 ls $BUCKET/vms/$VM_NAME/ | sort | tail -n 1 | awk '{print $4}')"
 aws s3 mv s3://${BUCKET}/vms/$VM_NAME/${OBJECT} s3://${BUCKET}/vms/$VM_NAME/${OVA_NAME}
+if [[ "$FILEDROP_UI" == "true" ]]; then
+  CS_API="true"
+fi
+aws s3api put-object-tagging --bucket ${bucket} --key $key --tagging "TagSet=[{Key='Filedrop_UI',Value=${FILEDROP_UI}},{Key='K8S_Flavor',Value='K3S'},{Key='CS_K8S_API',Value=${CS_API}}]"

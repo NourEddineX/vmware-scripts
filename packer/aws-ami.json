@@ -90,7 +90,7 @@
         {
             "type": "shell-local",
             "script": "ova-check.sh",
-            "environment_vars": ["OVA_NAME=icap-server-{{user `github_sha`}}.ova", "VM_NAME={{user `vm_name`}}", "CREATE_OVA={{user `create_ova`}}"]
+            "environment_vars": ["OVA_NAME=icap-server-{{user `github_sha`}}.ova", "VM_NAME={{user `vm_name`}}", "CREATE_OVA={{user `create_ova`}}", "FILEDROP_UI={{user `filedrop_ui`}}", "CS_K8S_API={{user `cs_api`}}"]
         }
     ]
 }

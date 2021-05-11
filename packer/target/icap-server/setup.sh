@@ -168,7 +168,28 @@ if [[ "${INSTALL_CSAPI}" -eq "true" ]]; then
 	kubectl apply -f deployment.yaml -n icap-adaptation
 fi
 # install filedrop UI
-
+INSTALL_FILEDROP_UI=${INSTALL_FILEDROP_UI:-true}
+if [[ "${INSTALL_FILEDROP_UI}" -eq "true" ]]; then
+	# install filedrop
+	# get source code
+	git clone https://github.com/k8-proxy/k8-rebuild.git --branch ck8s-filedrop --recursive && cd k8-rebuild && git submodule update --init --recursive && git submodule foreach git pull origin main && cd k8-rebuild-rest-api && git pull origin main && cd libs/ && git pull origin master && cd ../../
+	# build images
+	docker build k8-rebuild-file-drop/app -f k8-rebuild-file-drop/app/Dockerfile -t localhost:30500/k8-rebuild-file-drop
+	docker push localhost:30500/k8-rebuild-file-drop
+	rm -rf kubernetes/charts/sow-rest-api-0.1.0.tgz
+	cat >> kubernetes/values.yaml <<EOF
+sow-rest-ui:
+image:
+	registry: localhost:30500
+	repository: k8-rebuild-file-drop
+	imagePullPolicy: Never
+	tag: latest
+EOF
+	# install helm charts
+	helm upgrade --install k8-rebuild \
+	--set nginx.service.type=ClusterIP \
+	--atomic kubernetes/
+fi
 
 # allow password login (useful when deployed to esxi)
 SSH_PASSWORD=${SSH_PASSWORD:-glasswall}

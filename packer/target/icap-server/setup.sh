@@ -155,21 +155,12 @@ kubectl create -n management-ui secret generic smtpsecret \
 
 cd ..
 
-# install cs-k8s-api
-INSTALL_CSAPI=${INSTALL_CSAPI:-true}
+INSTALL_CSAPI=${INSTALL_CSAPI:-"true"}
+INSTALL_FILEDROP_UI=${INSTALL_FILEDROP_UI:-"true"}
 CS_API_IMAGE=${CS_API_IMAGE:-glasswallsolutions/cs-k8s-api:latest}
-if [[ "${INSTALL_CSAPI}" == "true" ]]; then
-	wget https://raw.githubusercontent.com/k8-proxy/cs-k8s-api/main/deployment.yaml
-	sudo docker pull $CS_API_IMAGE
-	CS_IMAGE_VERSION=$(echo $CS_API_IMAGE | cut -d":" -f2)
-	sudo docker tag $CS_API_IMAGE localhost:30500/cs-k8s-api:$CS_IMAGE_VERSION
-	sudo docker push localhost:30500/cs-k8s-api:$CS_IMAGE_VERSION
-	sed -i 's|glasswallsolutions/cs-k8s-api:.*|localhost:30500/cs-k8s-api:'$CS_IMAGE_VERSION'|' deployment.yaml
-	kubectl apply -f deployment.yaml -n icap-adaptation
-fi
 # install filedrop UI
-INSTALL_FILEDROP_UI=${INSTALL_FILEDROP_UI:-true}
 if [[ "${INSTALL_FILEDROP_UI}" == "true" ]]; then
+	INSTALL_CSAPI="true"
 	# install filedrop
 	# get source code
 	git clone https://github.com/k8-proxy/k8-rebuild.git --branch ck8s-filedrop --recursive && cd k8-rebuild && git submodule update --init --recursive && git submodule foreach git pull origin main && cd k8-rebuild-rest-api && git pull origin main && cd libs/ && git pull origin master && cd ../../
@@ -189,6 +180,16 @@ EOF
 	helm upgrade --install k8-rebuild \
 	--set nginx.service.type=ClusterIP \
 	--atomic kubernetes/
+fi
+# install cs-k8s-api
+if [[ "${INSTALL_CSAPI}" == "true" ]]; then
+	wget https://raw.githubusercontent.com/k8-proxy/cs-k8s-api/main/deployment.yaml
+	sudo docker pull $CS_API_IMAGE
+	CS_IMAGE_VERSION=$(echo $CS_API_IMAGE | cut -d":" -f2)
+	sudo docker tag $CS_API_IMAGE localhost:30500/cs-k8s-api:$CS_IMAGE_VERSION
+	sudo docker push localhost:30500/cs-k8s-api:$CS_IMAGE_VERSION
+	sed -i 's|glasswallsolutions/cs-k8s-api:.*|localhost:30500/cs-k8s-api:'$CS_IMAGE_VERSION'|' deployment.yaml
+	kubectl apply -f deployment.yaml -n icap-adaptation
 fi
 
 # allow password login (useful when deployed to esxi)

@@ -14,7 +14,7 @@
         "region": "{{user `region`}}",
         "secret_key": "{{user `aws_secret_key`}}",
         "ssh_username": "ubuntu",
-        "ssh_timeout": "20m",
+        "ssh_timeout": "10m",
         "type": "amazon-ebs",
         "ami_regions": "{{user `extra_regions`}}",
         "security_group_ids": "{{user `security_group_ids`}}",

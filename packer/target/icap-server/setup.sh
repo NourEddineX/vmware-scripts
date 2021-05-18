@@ -112,8 +112,8 @@ kubectl create -n icap-adaptation secret generic  rabbitmq-service-default-user 
 
 if [[ "$ICAP_FLAVOUR" == "classic" ]]; then
 	sudo snap install yq
-	requestImage=$(yq eval '.imagestore.requestprocessing.tag' adaptation/values.yaml)
-	sudo docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD 
+	requestImage=$(yq eval '.imagestore.requestprocessing.tag' values.yaml)
+	sudo docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
 	sudo docker pull glasswallsolutions/icap-request-processing:$requestImage
 	sudo docker tag glasswallsolutions/icap-request-processing:$requestImage localhost:30500/icap-request-processing:$requestImage
 	sudo docker push localhost:30500/icap-request-processing:$requestImage

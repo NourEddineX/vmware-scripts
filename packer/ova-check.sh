@@ -24,4 +24,4 @@ aws s3 mv s3://${BUCKET}/vms/$VM_NAME/${OBJECT} s3://${BUCKET}/vms/$VM_NAME/${OV
 if [[ "$FILEDROP_UI" == "true" ]]; then
   CS_API="true"
 fi
-aws s3api put-object-tagging --bucket ${BUCKET} --key vms/$VM_NAME/${OVA_NAME} --tagging "TagSet=[{Key='Filedrop_UI',Value=${FILEDROP_UI}},{Key='K8S_Flavor',Value='K3S'},{Key='CS_K8S_API',Value=${CS_API}}]"
+aws s3api put-object-tagging --bucket ${BUCKET} --key vms/$VM_NAME/${OVA_NAME} --tagging "TagSet=[{Key='Filedrop_UI',Value=${FILEDROP_UI}},{Key='K8S_Flavor',Value='K3S'},{Key='CS_K8S_API',Value=${CS_API}},{Key='ICAP_FLAVOUR',Value=${ICAP_FLAVOUR}}]"

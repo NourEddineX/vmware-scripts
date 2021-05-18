@@ -33,7 +33,8 @@
             "Name": "{{user `vm_name`}}",
             "CS_K8S_API": "{{user `cs_api` }}",
             "Filedrop_UI": "{{user `filedrop_ui`}}",
-            "K8S_Flavor": "k3s"
+            "K8S_Flavour": "k3s",
+            "ICAP_Flavour": "{{user `icap_flavour`}}"
         },
         "run_tags": {
             "Name": "Packer Builder {{user `vm_name`}}",

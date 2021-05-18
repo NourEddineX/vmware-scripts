@@ -157,6 +157,7 @@ cd ..
 
 if [[ "$ICAP_FLAVOUR" == "golang" ]]; then
 	# Install minio
+	kubectl create ns minio
 	helm repo add minio https://helm.min.io/
 	helm install -n minio --set accessKey=minio,secretKey=$MINIO_SECRET,buckets[0].name=sourcefiles,buckets[0].policy=none,buckets[0].purge=false,buckets[1].name=cleanfiles,buckets[1].policy=none,buckets[1].purge=false,fullnameOverride=minio-server,persistence.enabled=false minio/minio --generate-name
 

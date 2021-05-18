@@ -4,11 +4,7 @@ if [ -f ./env ] ; then
 source ./env
 fi
 
-# install wizard to setup network (for OVA)
-if [ -f ./update_partition_size.sh ] ; then
-chmod +x ./update_partition_size.sh
-./update_partition_size.sh
-fi
+ICAP_FLAVOUR=${ICAP_FLAVOUR:-classic}
 
 # Integrate Instance based healthcheck
 # pwd
@@ -46,8 +42,6 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install docker-ce docker-ce-cli cont
 
 # install local docker registry
 sudo docker run -d -p 127.0.0.1:30500:5000 --restart always --name registry registry:2
-sudo docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD 
-
 
 # install k3s
 curl -sfL https://get.k3s.io | sh -
@@ -73,12 +67,6 @@ git clone https://github.com/filetrust/icap-infrastructure.git -b $ICAP_SOW_BRAN
 cp  /tmp/icap-infrastructure-sow/adaptation/values.yaml adaptation/
 cp  /tmp/icap-infrastructure-sow/administration/values.yaml administration/
 cp  /tmp/icap-infrastructure-sow/ncfs/values.yaml ncfs/
-sudo snap install yq
-requestImage=$(yq eval '.imagestore.requestprocessing.tag' adaptation/values.yaml)
-sudo docker pull glasswallsolutions/icap-request-processing:$requestImage
-sudo docker tag glasswallsolutions/icap-request-processing:$requestImage localhost:30500/icap-request-processing:$requestImage
-sudo docker push localhost:30500/icap-request-processing:$requestImage
-
 
 # Admin ui default credentials
 sudo mkdir -p /var/local/rancher/host/c/userstore
@@ -118,24 +106,36 @@ openssl req -newkey rsa:2048 -config openssl.cnf -nodes -keyout  /tmp/tls.key -x
 kubectl create secret tls icap-service-tls-config --namespace icap-adaptation --key /tmp/tls.key --cert /tmp/certificate.crt
 
 pushd adaptation
-kubectl create -n icap-adaptation secret generic policyupdateservicesecret --from-literal=username=policy-management --from-literal=password='long-password'
-kubectl create -n icap-adaptation secret generic transactionqueryservicesecret --from-literal=username=query-service --from-literal=password='long-password'
-kubectl create -n icap-adaptation secret generic  rabbitmq-service-default-user --from-literal=username=guest --from-literal=password='guest'
-helm upgrade adaptation --values custom-values.yaml --install . --namespace icap-adaptation  --set imagestore.requestprocessing.registry='localhost:30500/' \
---set imagestore.requestprocessing.repository='icap-request-processing'
-sudo docker logout
+kubectl create -n icap-adaptation secret generic policyupdateservicesecret --from-literal=username=policy-management --from-literal=password=$TRANSACTIONS_SECRET
+kubectl create -n icap-adaptation secret generic transactionqueryservicesecret --from-literal=username=query-service --from-literal=password=$TRANSACTIONS_SECRET
+kubectl create -n icap-adaptation secret generic  rabbitmq-service-default-user --from-literal=username=guest --from-literal=password=$RABBIT_SECRET
+
+if [[ "$ICAP_FLAVOUR" == "classic" ]]; then
+	sudo snap install yq
+	requestImage=$(yq eval '.imagestore.requestprocessing.tag' adaptation/values.yaml)
+	sudo docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD 
+	sudo docker pull glasswallsolutions/icap-request-processing:$requestImage
+	sudo docker tag glasswallsolutions/icap-request-processing:$requestImage localhost:30500/icap-request-processing:$requestImage
+	sudo docker push localhost:30500/icap-request-processing:$requestImage
+	helm upgrade adaptation --values custom-values.yaml --install . --namespace icap-adaptation  --set imagestore.requestprocessing.registry='localhost:30500/' \
+	--set imagestore.requestprocessing.repository='icap-request-processing'
+	sudo docker logout
+
+else
+	helm upgrade adaptation --values custom-values.yaml --install . --namespace icap-adaptation
+fi
 popd
 
 # Setup icap policy management
 pushd ncfs
-kubectl create -n icap-ncfs secret generic ncfspolicyupdateservicesecret --from-literal=username=policy-update --from-literal=password='long-password'
+kubectl create -n icap-ncfs secret generic ncfspolicyupdateservicesecret --from-literal=username=policy-update --from-literal=password=$TRANSACTIONS_SECRET
 helm upgrade ncfs --values custom-values.yaml --install . --namespace icap-ncfs
 popd
 
 # setup management ui
-kubectl create -n management-ui secret generic transactionqueryserviceref --from-literal=username=query-service --from-literal=password='long-password'
-kubectl create -n management-ui secret generic policyupdateserviceref --from-literal=username=policy-management --from-literal=password='long-password'
-kubectl create -n management-ui secret generic ncfspolicyupdateserviceref --from-literal=username=policy-update --from-literal=password='long-password'
+kubectl create -n management-ui secret generic transactionqueryserviceref --from-literal=username=query-service --from-literal=password=$TRANSACTIONS_SECRET
+kubectl create -n management-ui secret generic policyupdateserviceref --from-literal=username=policy-management --from-literal=password=$TRANSACTIONS_SECRET
+kubectl create -n management-ui secret generic ncfspolicyupdateserviceref --from-literal=username=policy-update --from-literal=password=$TRANSACTIONS_SECRET
 
 pushd administration
 helm upgrade administration --values custom-values.yaml --install . --namespace management-ui
@@ -154,6 +154,26 @@ kubectl create -n management-ui secret generic smtpsecret \
 	--from-literal=SmtpSecureSocketOptions='http://management-ui:8080'
 
 cd ..
+
+if [[ "$ICAP_FLAVOUR" == "golang" ]]; then
+	# Install minio
+	helm repo add minio https://helm.min.io/
+	helm install -n minio --set accessKey=minio,secretKey=$MINIO_SECRET,buckets[0].name=sourcefiles,buckets[0].policy=none,buckets[0].purge=false,buckets[1].name=cleanfiles,buckets[1].policy=none,buckets[1].purge=false,fullnameOverride=minio-server,persistence.enabled=false minio/minio --generate-name
+
+	kubectl create -n icap-adaptation secret generic minio-credentials --from-literal=username='minio' --from-literal=password=$MINIO_SECRET
+
+	# deploy new Go services
+	git clone https://github.com/k8-proxy/go-k8s-infra.git -b develop && cd go-k8s-infra
+
+	# Scale the existing adaptation service to 0
+	kubectl -n icap-adaptation scale --replicas=0 deployment/adaptation-service
+
+	# Apply helm chart to create the services
+	pushd services
+	helm upgrade servicesv2 --install . --namespace icap-adaptation
+	popd
+
+fi
 
 INSTALL_CSAPI=${INSTALL_CSAPI:-"true"}
 INSTALL_FILEDROP_UI=${INSTALL_FILEDROP_UI:-"true"}

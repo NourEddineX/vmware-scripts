@@ -78,12 +78,6 @@ kubectl create ns icap-adaptation
 kubectl create ns management-ui
 kubectl create ns icap-ncfs
 
-kubectl create -n icap-adaptation secret docker-registry regcred \
-	--docker-server=https://index.docker.io/v1/ \
-	--docker-username="" \
-	--docker-password="" \
-	--docker-email=""
-
 # Setup rabbitMQ
 pushd rabbitmq && helm upgrade rabbitmq --install . --namespace icap-adaptation && popd
 

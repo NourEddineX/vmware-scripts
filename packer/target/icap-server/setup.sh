@@ -181,8 +181,8 @@ if [[ "${INSTALL_FILEDROP_UI}" == "true" ]]; then
 	# get source code
 	git clone https://github.com/k8-proxy/k8-rebuild.git --branch ck8s-filedrop --recursive && cd k8-rebuild && git submodule update --init --recursive && git submodule foreach git pull origin main && cd k8-rebuild-rest-api && git pull origin main && cd libs/ && git pull origin master && cd ../../
 	# build images
-	docker build k8-rebuild-file-drop/app -f k8-rebuild-file-drop/app/Dockerfile -t localhost:30500/k8-rebuild-file-drop
-	docker push localhost:30500/k8-rebuild-file-drop
+	sudo docker build k8-rebuild-file-drop/app -f k8-rebuild-file-drop/app/Dockerfile -t localhost:30500/k8-rebuild-file-drop
+	sudo docker push localhost:30500/k8-rebuild-file-drop
 	rm -rf kubernetes/charts/sow-rest-api-0.1.0.tgz
 	cat >> kubernetes/values.yaml <<EOF
 sow-rest-ui:

@@ -16,6 +16,7 @@ sleep 10s
 
 # install needed packages
 sudo apt install -y telnet tcpdump open-vm-tools net-tools dialog curl git sed grep fail2ban
+sudo snap install yq
 sudo systemctl enable fail2ban.service
 sudo tee -a /etc/fail2ban/jail.d/sshd.conf << EOF > /dev/null
 [sshd]

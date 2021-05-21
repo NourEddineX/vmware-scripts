@@ -171,6 +171,17 @@ fi
 INSTALL_CSAPI=${INSTALL_CSAPI:-"true"}
 INSTALL_FILEDROP_UI=${INSTALL_FILEDROP_UI:-"true"}
 CS_API_IMAGE=${CS_API_IMAGE:-glasswallsolutions/cs-k8s-api:latest}
+# install cs-k8s-api
+if [[ "${INSTALL_CSAPI}" == "true" ]]; then
+	wget https://raw.githubusercontent.com/k8-proxy/cs-k8s-api/main/deployment.yaml
+	sudo docker pull $CS_API_IMAGE
+	CS_IMAGE_VERSION=$(echo $CS_API_IMAGE | cut -d":" -f2)
+	sudo docker tag $CS_API_IMAGE localhost:30500/cs-k8s-api:$CS_IMAGE_VERSION
+	sudo docker push localhost:30500/cs-k8s-api:$CS_IMAGE_VERSION
+	sed -i 's|glasswallsolutions/cs-k8s-api:.*|localhost:30500/cs-k8s-api:'$CS_IMAGE_VERSION'|' deployment.yaml
+	kubectl apply -f deployment.yaml -n icap-adaptation
+fi
+
 # install filedrop UI
 if [[ "${INSTALL_FILEDROP_UI}" == "true" ]]; then
 	git clone https://github.com/k8-proxy/k8-rebuild.git && pushd k8-rebuild
@@ -188,16 +199,6 @@ if [[ "${INSTALL_FILEDROP_UI}" == "true" ]]; then
 	--set sow-rest-ui.image.registry=localhost:30500 \
 	--atomic kubernetes/
 	popd
-fi
-# install cs-k8s-api
-if [[ "${INSTALL_CSAPI}" == "true" ]]; then
-	wget https://raw.githubusercontent.com/k8-proxy/cs-k8s-api/main/deployment.yaml
-	sudo docker pull $CS_API_IMAGE
-	CS_IMAGE_VERSION=$(echo $CS_API_IMAGE | cut -d":" -f2)
-	sudo docker tag $CS_API_IMAGE localhost:30500/cs-k8s-api:$CS_IMAGE_VERSION
-	sudo docker push localhost:30500/cs-k8s-api:$CS_IMAGE_VERSION
-	sed -i 's|glasswallsolutions/cs-k8s-api:.*|localhost:30500/cs-k8s-api:'$CS_IMAGE_VERSION'|' deployment.yaml
-	kubectl apply -f deployment.yaml -n icap-adaptation
 fi
 
 # allow password login (useful when deployed to esxi)

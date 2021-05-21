@@ -125,6 +125,7 @@ if [[ "$ICAP_FLAVOUR" == "golang" ]]; then
 
 	# Scale the existing adaptation service to 0
 	kubectl -n icap-adaptation scale --replicas=0 deployment/adaptation-service
+	kubectl -n icap-adaptation delete cronjob pod-janitor
 
 	# Apply helm chart to create the services
 	helm upgrade servicesv2 --install services --namespace icap-adaptation

@@ -7,11 +7,14 @@
       {
         "access_key": "{{user `aws_access_key`}}",
         "ami_name": "{{user `vm_name`}}-{{user `github_sha`}}",
-        "instance_type": "t3.large",
+        "spot_instance_types": ["t2.xlarge", "t3.xlarge"],
+        "spot_price": "auto",
+        "associate_public_ip_address": true,
+        "ssh_interface": "public_ip",
         "region": "{{user `region`}}",
         "secret_key": "{{user `aws_secret_key`}}",
         "ssh_username": "ubuntu",
-        "ssh_timeout": "20m",
+        "ssh_timeout": "10m",
         "type": "amazon-ebs",
         "ami_regions": "{{user `extra_regions`}}",
         "security_group_ids": "{{user `security_group_ids`}}",
@@ -27,7 +30,13 @@
         "tags": {
             "OS_Version": "Ubuntu-20.04",
             "Base_AMI_Name": "{{ .SourceAMIName }}",
-            "Name": "{{user `vm_name`}}"
+            "Name": "{{user `vm_name`}}",
+            "CS_K8S_API": "{{user `cs_api` }}",
+            "Filedrop_UI": "{{user `filedrop_ui`}}",
+            "K8S_Flavour": "k3s",
+            "ICAP_Flavour": "{{user `icap_flavour`}}",
+            "Github_Run_id": "{{user `github_sha`}}",
+            "M_UI": "{{user `install_m_ui`}}"
         },
         "run_tags": {
             "Name": "Packer Builder {{user `vm_name`}}",
@@ -40,6 +49,7 @@
           {
             "device_name": "/dev/sda1",
             "volume_type": "gp2",
+            "volume_size": 20,
             "delete_on_termination": true
           }
         ]
@@ -87,7 +97,7 @@
         {
             "type": "shell-local",
             "script": "ova-check.sh",
-            "environment_vars": ["OVA_NAME=icap-server-{{user `github_sha`}}.ova", "VM_NAME={{user `vm_name`}}", "CREATE_OVA={{user `create_ova`}}"]
+            "environment_vars": ["OVA_NAME=icap-server-{{user `github_sha`}}.ova", "VM_NAME={{user `vm_name`}}", "CREATE_OVA={{user `create_ova`}}", "FILEDROP_UI={{user `filedrop_ui`}}", "CS_K8S_API={{user `cs_api`}}", "INSTALL_M_UI={{user `install_m_ui`}}", "ICAP_FLAVOUR={{user `icap_flavour`}}"]
         }
     ]
 }

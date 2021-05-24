@@ -1,14 +1,11 @@
 #!/bin/bash
+set -e
 pushd $( dirname $0 )
 if [ -f ./env ] ; then
 source ./env
 fi
 
-# install wizard to setup network (for OVA)
-if [ -f ./update_partition_size.sh ] ; then
-chmod +x ./update_partition_size.sh
-./update_partition_size.sh
-fi
+ICAP_FLAVOUR=${ICAP_FLAVOUR:-classic}
 
 # Integrate Instance based healthcheck
 # pwd
@@ -46,8 +43,6 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install docker-ce docker-ce-cli cont
 
 # install local docker registry
 sudo docker run -d -p 127.0.0.1:30500:5000 --restart always --name registry registry:2
-sudo docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD 
-
 
 # install k3s
 curl -sfL https://get.k3s.io | sh -
@@ -73,27 +68,9 @@ git clone https://github.com/filetrust/icap-infrastructure.git -b $ICAP_SOW_BRAN
 cp  /tmp/icap-infrastructure-sow/adaptation/values.yaml adaptation/
 cp  /tmp/icap-infrastructure-sow/administration/values.yaml administration/
 cp  /tmp/icap-infrastructure-sow/ncfs/values.yaml ncfs/
-sudo snap install yq
-requestImage=$(yq eval '.imagestore.requestprocessing.tag' adaptation/values.yaml)
-sudo docker pull glasswallsolutions/icap-request-processing:$requestImage
-sudo docker tag glasswallsolutions/icap-request-processing:$requestImage localhost:30500/icap-request-processing:$requestImage
-sudo docker push localhost:30500/icap-request-processing:$requestImage
-
-
-# Admin ui default credentials
-sudo mkdir -p /var/local/rancher/host/c/userstore
-sudo cp -r default-user/* /var/local/rancher/host/c/userstore/
 
 # Create namespaces
 kubectl create ns icap-adaptation
-kubectl create ns management-ui
-kubectl create ns icap-ncfs
-
-kubectl create -n icap-adaptation secret docker-registry regcred \
-	--docker-server=https://index.docker.io/v1/ \
-	--docker-username="" \
-	--docker-password="" \
-	--docker-email=""
 
 # Setup rabbitMQ
 pushd rabbitmq && helm upgrade rabbitmq --install . --namespace icap-adaptation && popd
@@ -118,49 +95,112 @@ openssl req -newkey rsa:2048 -config openssl.cnf -nodes -keyout  /tmp/tls.key -x
 kubectl create secret tls icap-service-tls-config --namespace icap-adaptation --key /tmp/tls.key --cert /tmp/certificate.crt
 
 pushd adaptation
-kubectl create -n icap-adaptation secret generic policyupdateservicesecret --from-literal=username=policy-management --from-literal=password='long-password'
-kubectl create -n icap-adaptation secret generic transactionqueryservicesecret --from-literal=username=query-service --from-literal=password='long-password'
-kubectl create -n icap-adaptation secret generic  rabbitmq-service-default-user --from-literal=username=guest --from-literal=password='guest'
-helm upgrade adaptation --values custom-values.yaml --install . --namespace icap-adaptation  --set imagestore.requestprocessing.registry='localhost:30500/' \
---set imagestore.requestprocessing.repository='icap-request-processing'
-sudo docker logout
-popd
+kubectl create -n icap-adaptation secret generic policyupdateservicesecret --from-literal=username=policy-management --from-literal=password=$TRANSACTIONS_SECRET
+kubectl create -n icap-adaptation secret generic transactionqueryservicesecret --from-literal=username=query-service --from-literal=password=$TRANSACTIONS_SECRET
+kubectl create -n icap-adaptation secret generic  rabbitmq-service-default-user --from-literal=username=guest --from-literal=password=$RABBIT_SECRET
 
-# Setup icap policy management
-pushd ncfs
-kubectl create -n icap-ncfs secret generic ncfspolicyupdateservicesecret --from-literal=username=policy-update --from-literal=password='long-password'
-helm upgrade ncfs --values custom-values.yaml --install . --namespace icap-ncfs
-popd
+if [[ "$ICAP_FLAVOUR" == "classic" ]]; then
+	requestImage=$(yq eval '.imagestore.requestprocessing.tag' values.yaml)
+	sudo docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+	sudo docker pull glasswallsolutions/icap-request-processing:$requestImage
+	sudo docker tag glasswallsolutions/icap-request-processing:$requestImage localhost:30500/icap-request-processing:$requestImage
+	sudo docker push localhost:30500/icap-request-processing:$requestImage
+	helm upgrade adaptation --values custom-values.yaml --install . --namespace icap-adaptation  --set imagestore.requestprocessing.registry='localhost:30500/' \
+	--set imagestore.requestprocessing.repository='icap-request-processing'
+	sudo docker logout
+	popd
+fi
 
-# setup management ui
-kubectl create -n management-ui secret generic transactionqueryserviceref --from-literal=username=query-service --from-literal=password='long-password'
-kubectl create -n management-ui secret generic policyupdateserviceref --from-literal=username=policy-management --from-literal=password='long-password'
-kubectl create -n management-ui secret generic ncfspolicyupdateserviceref --from-literal=username=policy-update --from-literal=password='long-password'
+if [[ "$ICAP_FLAVOUR" == "golang" ]]; then
+	helm upgrade adaptation --values custom-values.yaml --install . --namespace icap-adaptation
+	popd
+	# Install minio
+	kubectl create ns minio
+	helm repo add minio https://helm.min.io/
+	helm install -n minio --set accessKey=minio,secretKey=$MINIO_SECRET,buckets[0].name=sourcefiles,buckets[0].policy=none,buckets[0].purge=false,buckets[1].name=cleanfiles,buckets[1].policy=none,buckets[1].purge=false,fullnameOverride=minio-server,persistence.enabled=false minio/minio --generate-name
+	kubectl create -n icap-adaptation secret generic minio-credentials --from-literal=username='minio' --from-literal=password=$MINIO_SECRET
 
-pushd administration
-helm upgrade administration --values custom-values.yaml --install . --namespace management-ui
-popd
+	# deploy new Go services
+	git clone https://github.com/k8-proxy/go-k8s-infra.git -b develop && pushd go-k8s-infra
 
-kubectl delete secret/smtpsecret -n management-ui
-kubectl create -n management-ui secret generic smtpsecret \
-	--from-literal=SmtpHost=$SMTPHOST \
-	--from-literal=SmtpPort=$SMTPPORT \
-	--from-literal=SmtpUser=$SMTPUSER \
-	--from-literal=SmtpPass=$SMTPPASS \
-	--from-literal=TokenSecret='12345678901234567890123456789012' \
-	--from-literal=TokenLifetime='00:01:00' \
-	--from-literal=EncryptionSecret='12345678901234567890123456789012' \
-	--from-literal=ManagementUIEndpoint='http://management-ui:8080' \
-	--from-literal=SmtpSecureSocketOptions='http://management-ui:8080'
+	# Scale the existing adaptation service to 0
+	kubectl -n icap-adaptation scale --replicas=0 deployment/adaptation-service
+	kubectl -n icap-adaptation delete cronjob pod-janitor
 
-cd ..
+	# Apply helm chart to create the services
+	helm upgrade servicesv2 --install services --namespace icap-adaptation
+	popd
+fi
 
-# deploy monitoring solution
-git clone https://github.com/k8-proxy/k8-rebuild.git && cd k8-rebuild
-helm install sow-monitoring monitoring --set monitoring.elasticsearch.host=$MONITORING_IP --set monitoring.elasticsearch.username=$MONITORING_USER --set monitoring.elasticsearch.password=$MONITORING_PASSWORD
+if [[ "${INSTALL_M_UI}" == "true" ]]; then
+	# Admin ui credentials
+	sudo mkdir -p /var/local/rancher/host/c/userstore
+	sudo cp -r default-user/* /var/local/rancher/host/c/userstore/
+	# create namespaces
+	kubectl create ns management-ui
+	kubectl create ns icap-ncfs
+	# Setup icap policy management
+	pushd ncfs
+	kubectl create -n icap-ncfs secret generic ncfspolicyupdateservicesecret --from-literal=username=policy-update --from-literal=password=$TRANSACTIONS_SECRET
+	helm upgrade ncfs --values custom-values.yaml --install . --namespace icap-ncfs
+	popd
 
-# wait until the pods are up
-# sleep 120s
+	# setup management ui
+	kubectl create -n management-ui secret generic transactionqueryserviceref --from-literal=username=query-service --from-literal=password=$TRANSACTIONS_SECRET
+	kubectl create -n management-ui secret generic policyupdateserviceref --from-literal=username=policy-management --from-literal=password=$TRANSACTIONS_SECRET
+	kubectl create -n management-ui secret generic ncfspolicyupdateserviceref --from-literal=username=policy-update --from-literal=password=$TRANSACTIONS_SECRET
+
+	pushd administration
+	helm upgrade administration --values custom-values.yaml --install . --namespace management-ui
+	popd
+
+	kubectl delete secret/smtpsecret -n management-ui
+	kubectl create -n management-ui secret generic smtpsecret \
+		--from-literal=SmtpHost=$SMTPHOST \
+		--from-literal=SmtpPort=$SMTPPORT \
+		--from-literal=SmtpUser=$SMTPUSER \
+		--from-literal=SmtpPass=$SMTPPASS \
+		--from-literal=TokenSecret='12345678901234567890123456789012' \
+		--from-literal=TokenLifetime='00:01:00' \
+		--from-literal=EncryptionSecret='12345678901234567890123456789012' \
+		--from-literal=ManagementUIEndpoint='http://management-ui:8080' \
+		--from-literal=SmtpSecureSocketOptions='http://management-ui:8080'
+
+	cd ..
+fi
+
+INSTALL_CSAPI=${INSTALL_CSAPI:-"true"}
+INSTALL_FILEDROP_UI=${INSTALL_FILEDROP_UI:-"true"}
+CS_API_IMAGE=${CS_API_IMAGE:-glasswallsolutions/cs-k8s-api:latest}
+# install cs-k8s-api
+if [[ "${INSTALL_CSAPI}" == "true" ]]; then
+	wget https://raw.githubusercontent.com/k8-proxy/cs-k8s-api/main/deployment.yaml
+	sudo docker pull $CS_API_IMAGE
+	CS_IMAGE_VERSION=$(echo $CS_API_IMAGE | cut -d":" -f2)
+	sudo docker tag $CS_API_IMAGE localhost:30500/cs-k8s-api:$CS_IMAGE_VERSION
+	sudo docker push localhost:30500/cs-k8s-api:$CS_IMAGE_VERSION
+	sed -i 's|glasswallsolutions/cs-k8s-api:.*|localhost:30500/cs-k8s-api:'$CS_IMAGE_VERSION'|' deployment.yaml
+	kubectl apply -f deployment.yaml -n icap-adaptation
+fi
+
+# install filedrop UI
+if [[ "${INSTALL_FILEDROP_UI}" == "true" ]]; then
+	git clone https://github.com/k8-proxy/k8-rebuild.git && pushd k8-rebuild
+	# build images
+	ui_tag=$(yq eval '.sow-rest-ui.image.tag' kubernetes/values.yaml)
+	ui_registry=$(yq eval '.sow-rest-ui.image.registry' kubernetes/values.yaml)
+	ui_repo=$(yq eval '.sow-rest-ui.image.repository' kubernetes/values.yaml)
+	sudo docker pull $ui_registry/$ui_repo:$ui_tag
+	sudo docker tag $ui_registry/$ui_repo:$ui_tag localhost:30500/k8-rebuild-file-drop:$ui_tag
+	sudo docker push localhost:30500/k8-rebuild-file-drop:$ui_tag
+	rm -rf kubernetes/charts/sow-rest-api-0.1.0.tgz
+	sed -i 's/sow-rest-api/proxy-rest-api.icap-adaptation.svc.cluster.local:8080/g' kubernetes/values.yaml
+	# install helm charts
+	helm upgrade --install k8-rebuild --set nginx.service.type=ClusterIP \
+	--set sow-rest-ui.image.registry=localhost:30500 \
+	--atomic kubernetes/
+	popd
+fi
 
 # allow password login (useful when deployed to esxi)
 SSH_PASSWORD=${SSH_PASSWORD:-glasswall}
@@ -168,3 +208,9 @@ printf "${SSH_PASSWORD}\n${SSH_PASSWORD}" | sudo passwd ubuntu
 sudo sed -i "s/.*PasswordAuthentication.*/PasswordAuthentication yes/g" /etc/ssh/sshd_config
 sudo service ssh restart
 
+# install vmware-guestinfo when generating OVA
+CREATE_OVA=${CREATE_OVA:-false}
+if [[ "$CREATE_OVA" == "true" ]]; then
+	echo $CREATE_OVA
+	curl -sSL https://raw.githubusercontent.com/vmware/cloud-init-vmware-guestinfo/master/install.sh | sudo sh -
+fi

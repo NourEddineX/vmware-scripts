@@ -16,6 +16,7 @@ sleep 10s
 
 # install needed packages
 sudo apt install -y telnet tcpdump open-vm-tools net-tools dialog curl git sed grep fail2ban
+sudo snap install yq
 sudo systemctl enable fail2ban.service
 sudo tee -a /etc/fail2ban/jail.d/sshd.conf << EOF > /dev/null
 [sshd]
@@ -69,3 +70,9 @@ sudo systemctl enable --now node_exporter
 
 # remove vmware scripts directory
 rm -rf ~/scripts/
+
+# set glasswall as hostname
+sudo tee -a /etc/cloud/cloud.cfg <<EOF
+preserve_hostname: true
+EOF
+sudo hostnamectl set-hostname glasswall

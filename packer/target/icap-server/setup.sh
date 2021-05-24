@@ -62,12 +62,6 @@ cd ~
 ICAP_BRANCH=${ICAP_BRANCH:-k8-develop}
 git clone https://github.com/k8-proxy/icap-infrastructure.git -b $ICAP_BRANCH && cd icap-infrastructure
 
-# Clone ICAP SOW Version 
-ICAP_SOW_BRANCH=${ICAP_SOW_BRANCH:-main}
-git clone https://github.com/filetrust/icap-infrastructure.git -b $ICAP_SOW_BRANCH /tmp/icap-infrastructure-sow
-cp  /tmp/icap-infrastructure-sow/adaptation/values.yaml adaptation/
-cp  /tmp/icap-infrastructure-sow/administration/values.yaml administration/
-cp  /tmp/icap-infrastructure-sow/ncfs/values.yaml ncfs/
 
 # Create namespaces
 kubectl create ns icap-adaptation
@@ -100,10 +94,11 @@ kubectl create -n icap-adaptation secret generic transactionqueryservicesecret -
 kubectl create -n icap-adaptation secret generic  rabbitmq-service-default-user --from-literal=username=guest --from-literal=password=$RABBIT_SECRET
 
 if [[ "$ICAP_FLAVOUR" == "classic" ]]; then
-	requestImage=$(yq eval '.imagestore.requestprocessing.tag' values.yaml)
+	requestImage=$(yq eval '.imagestore.requestprocessing.tag' custom-values.yaml)
+	requestRepo=$(yq eval '.imagestore.requestprocessing.repository' custom-values.yaml)
 	sudo docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
-	sudo docker pull glasswallsolutions/icap-request-processing:$requestImage
-	sudo docker tag glasswallsolutions/icap-request-processing:$requestImage localhost:30500/icap-request-processing:$requestImage
+	sudo docker pull $requestRepo:$requestImage
+	sudo docker tag $requestRepo:$requestImage localhost:30500/icap-request-processing:$requestImage
 	sudo docker push localhost:30500/icap-request-processing:$requestImage
 	helm upgrade adaptation --values custom-values.yaml --install . --namespace icap-adaptation  --set imagestore.requestprocessing.registry='localhost:30500/' \
 	--set imagestore.requestprocessing.repository='icap-request-processing'

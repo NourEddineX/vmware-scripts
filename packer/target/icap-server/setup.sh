@@ -189,9 +189,11 @@ if [[ "${INSTALL_FILEDROP_UI}" == "true" ]]; then
 	sudo docker tag $ui_registry/$ui_repo:$ui_tag localhost:30500/k8-rebuild-file-drop:$ui_tag
 	sudo docker push localhost:30500/k8-rebuild-file-drop:$ui_tag
 	rm -rf kubernetes/charts/sow-rest-api-0.1.0.tgz
-	sed -i 's/sow-rest-api/proxy-rest-api.icap-adaptation.svc.cluster.local:8080/g' kubernetes/values.yaml
+	rm -rf kubernetes/charts/nginx-8.2.0.tgz
+	sed -i 's/sow-rest-api/proxy-rest-api/g' kubernetes/templates/ingress.yaml
+	sed -i ':a;N;$!ba;s/80/8080/1' kubernetes/templates/ingress.yaml
 	# install helm charts
-	helm upgrade --install k8-rebuild --set nginx.service.type=ClusterIP \
+	helm upgrade --install k8-rebuild -n icap-adaptation --set nginx.service.type=ClusterIP \
 	--set sow-rest-ui.image.registry=localhost:30500 \
 	--atomic kubernetes/
 	popd

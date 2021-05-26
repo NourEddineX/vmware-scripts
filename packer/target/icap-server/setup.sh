@@ -191,7 +191,8 @@ if [[ "${INSTALL_FILEDROP_UI}" == "true" ]]; then
 	rm -rf kubernetes/charts/sow-rest-api-0.1.0.tgz
 	rm -rf kubernetes/charts/nginx-8.2.0.tgz
 	sed -i 's/sow-rest-api/proxy-rest-api/g' kubernetes/templates/ingress.yaml
-	sed -i ':a;N;$!ba;s/80/8080/1' kubernetes/templates/ingress.yaml
+	sed -i 's/80/8080/g' kubernetes/templates/ingress.yaml
+	sed -i ':a;N;$!ba;s/8080/80/5' kubernetes/templates/ingress.yaml
 	# install helm charts
 	helm upgrade --install k8-rebuild -n icap-adaptation --set nginx.service.type=ClusterIP \
 	--set sow-rest-ui.image.registry=localhost:30500 \

@@ -62,12 +62,6 @@ cd ~
 ICAP_BRANCH=${ICAP_BRANCH:-k8-develop}
 git clone https://github.com/k8-proxy/icap-infrastructure.git -b $ICAP_BRANCH && cd icap-infrastructure
 
-# Clone ICAP SOW Version 
-ICAP_SOW_BRANCH=${ICAP_SOW_BRANCH:-main}
-git clone https://github.com/filetrust/icap-infrastructure.git -b $ICAP_SOW_BRANCH /tmp/icap-infrastructure-sow
-cp  /tmp/icap-infrastructure-sow/adaptation/values.yaml adaptation/
-cp  /tmp/icap-infrastructure-sow/administration/values.yaml administration/
-cp  /tmp/icap-infrastructure-sow/ncfs/values.yaml ncfs/
 
 # Create namespaces
 kubectl create ns icap-adaptation
@@ -100,10 +94,11 @@ kubectl create -n icap-adaptation secret generic transactionqueryservicesecret -
 kubectl create -n icap-adaptation secret generic  rabbitmq-service-default-user --from-literal=username=guest --from-literal=password=$RABBIT_SECRET
 
 if [[ "$ICAP_FLAVOUR" == "classic" ]]; then
-	requestImage=$(yq eval '.imagestore.requestprocessing.tag' values.yaml)
+	requestImage=$(yq eval '.imagestore.requestprocessing.tag' custom-values.yaml)
+	requestRepo=$(yq eval '.imagestore.requestprocessing.repository' custom-values.yaml)
 	sudo docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
-	sudo docker pull glasswallsolutions/icap-request-processing:$requestImage
-	sudo docker tag glasswallsolutions/icap-request-processing:$requestImage localhost:30500/icap-request-processing:$requestImage
+	sudo docker pull $requestRepo:$requestImage
+	sudo docker tag $requestRepo:$requestImage localhost:30500/icap-request-processing:$requestImage
 	sudo docker push localhost:30500/icap-request-processing:$requestImage
 	helm upgrade adaptation --values custom-values.yaml --install . --namespace icap-adaptation  --set imagestore.requestprocessing.registry='localhost:30500/' \
 	--set imagestore.requestprocessing.repository='icap-request-processing'
@@ -116,6 +111,7 @@ if [[ "$ICAP_FLAVOUR" == "golang" ]]; then
 	popd
 	# Install minio
 	kubectl create ns minio
+	kubectl create ns jaeger
 	helm repo add minio https://helm.min.io/
 	helm install -n minio --set accessKey=minio,secretKey=$MINIO_SECRET,buckets[0].name=sourcefiles,buckets[0].policy=none,buckets[0].purge=false,buckets[1].name=cleanfiles,buckets[1].policy=none,buckets[1].purge=false,fullnameOverride=minio-server,persistence.enabled=false minio/minio --generate-name
 	kubectl create -n icap-adaptation secret generic minio-credentials --from-literal=username='minio' --from-literal=password=$MINIO_SECRET
@@ -126,7 +122,8 @@ if [[ "$ICAP_FLAVOUR" == "golang" ]]; then
 	# Scale the existing adaptation service to 0
 	kubectl -n icap-adaptation scale --replicas=0 deployment/adaptation-service
 	kubectl -n icap-adaptation delete cronjob pod-janitor
-
+	# Install jaeger-agent
+	kubectl apply -f jaeger-agent/jaeger.yaml
 	# Apply helm chart to create the services
 	helm upgrade servicesv2 --install services --namespace icap-adaptation
 	popd
@@ -194,9 +191,12 @@ if [[ "${INSTALL_FILEDROP_UI}" == "true" ]]; then
 	sudo docker tag $ui_registry/$ui_repo:$ui_tag localhost:30500/k8-rebuild-file-drop:$ui_tag
 	sudo docker push localhost:30500/k8-rebuild-file-drop:$ui_tag
 	rm -rf kubernetes/charts/sow-rest-api-0.1.0.tgz
-	sed -i 's/sow-rest-api/proxy-rest-api.icap-adaptation.svc.cluster.local:8080/g' kubernetes/values.yaml
+	rm -rf kubernetes/charts/nginx-8.2.0.tgz
+	sed -i 's/sow-rest-api/proxy-rest-api/g' kubernetes/templates/ingress.yaml
+	sed -i 's/80/8080/g' kubernetes/templates/ingress.yaml
+	sed -i ':a;N;$!ba;s/8080/80/5' kubernetes/templates/ingress.yaml
 	# install helm charts
-	helm upgrade --install k8-rebuild --set nginx.service.type=ClusterIP \
+	helm upgrade --install k8-rebuild -n icap-adaptation --set nginx.service.type=ClusterIP \
 	--set sow-rest-ui.image.registry=localhost:30500 \
 	--atomic kubernetes/
 	popd

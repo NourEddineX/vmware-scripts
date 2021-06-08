@@ -172,35 +172,19 @@ INSTALL_FILEDROP_UI=${INSTALL_FILEDROP_UI:-"true"}
 CS_API_IMAGE=${CS_API_IMAGE:-glasswallsolutions/cs-k8s-api:latest}
 # install cs-k8s-api
 if [[ "${INSTALL_CSAPI}" == "true" ]]; then
-	wget https://raw.githubusercontent.com/k8-proxy/cs-k8s-api/main/deployment.yaml
-	sudo docker pull $CS_API_IMAGE
-	CS_IMAGE_VERSION=$(echo $CS_API_IMAGE | cut -d":" -f2)
-	sudo docker tag $CS_API_IMAGE localhost:30500/cs-k8s-api:$CS_IMAGE_VERSION
-	sudo docker push localhost:30500/cs-k8s-api:$CS_IMAGE_VERSION
-	sed -i 's|glasswallsolutions/cs-k8s-api:.*|localhost:30500/cs-k8s-api:'$CS_IMAGE_VERSION'|' deployment.yaml
-	kubectl apply -f deployment.yaml -n icap-adaptation
+	git clone https://github.com/k8-proxy/cs-k8s-api && pushd cs-k8s-api
+  	helm upgrade --install -n icap-adaptation rebuild-api infra/kubernetes/chart --atomic && popd
 fi
 
 # install filedrop UI
 if [[ "${INSTALL_FILEDROP_UI}" == "true" ]]; then
 	git clone https://github.com/k8-proxy/k8-rebuild.git && pushd k8-rebuild
 	# build images
-	ui_tag=$(yq eval '.sow-rest-ui.image.tag' kubernetes/values.yaml)
-	ui_registry=$(yq eval '.sow-rest-ui.image.registry' kubernetes/values.yaml)
-	ui_repo=$(yq eval '.sow-rest-ui.image.repository' kubernetes/values.yaml)
-	sudo docker pull $ui_registry/$ui_repo:$ui_tag
-	sudo docker tag $ui_registry/$ui_repo:$ui_tag localhost:30500/k8-rebuild-file-drop:$ui_tag
-	sudo docker push localhost:30500/k8-rebuild-file-drop:$ui_tag
 	rm -rf kubernetes/charts/sow-rest-api-0.1.0.tgz
 	rm -rf kubernetes/charts/nginx-8.2.0.tgz
-	sed -i 's/sow-rest-api/proxy-rest-api/g' kubernetes/templates/ingress.yaml
-	sed -i 's/80/8080/g' kubernetes/templates/ingress.yaml
-	sed -i ':a;N;$!ba;s/8080/80/5' kubernetes/templates/ingress.yaml
 	# install helm charts
 	helm upgrade --install k8-rebuild -n icap-adaptation --set nginx.service.type=ClusterIP \
-	--set sow-rest-ui.image.registry=localhost:30500 \
-	--atomic kubernetes/
-	popd
+	--atomic kubernetes/ && popd
 fi
 
 # allow password login (useful when deployed to esxi)

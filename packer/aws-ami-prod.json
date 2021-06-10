@@ -18,15 +18,7 @@
         "type": "amazon-ebs",
         "ami_regions": "{{user `extra_regions`}}",
         "security_group_ids": "{{user `security_group_ids`}}",
-        "source_ami_filter": {
-            "filters": {
-            "virtualization-type": "hvm",
-            "name": "ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-*",
-            "root-device-type": "ebs"
-            },
-            "owners": ["099720109477"],
-            "most_recent": true
-         },
+        "source_ami": "{{user `ami_id`}}",
         "tags": {
             "OS_Version": "Ubuntu-20.04",
             "Base_AMI_Name": "{{ .SourceAMIName }}",

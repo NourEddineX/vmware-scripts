@@ -57,11 +57,21 @@ echo "Done installing kubectl"
 curl -sfL https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
 echo "Done installing helm"
 
+if [[ "${BRANCH}" == "main" ]]; then
+	BRANCH_NAME="main"
+else
+	BRANCH_NAME="develop"
+fi
+
 # get source code, we clone in in home dir so we can easilly update in place
 cd ~
-ICAP_BRANCH=${ICAP_BRANCH:-k8-develop}
+ICAP_BRANCH=${ICAP_BRANCH:-k8-main}
 git clone https://github.com/k8-proxy/icap-infrastructure.git -b $ICAP_BRANCH && cd icap-infrastructure
-
+# Clone ICAP SOW Version
+git clone https://github.com/filetrust/icap-infrastructure.git -b main /tmp/icap-infrastructure-sow
+cp /tmp/icap-infrastructure-sow/adaptation/values.yaml adaptation/
+cp /tmp/icap-infrastructure-sow/administration/values.yaml administration/
+cp /tmp/icap-infrastructure-sow/ncfs/values.yaml ncfs/
 
 # Create namespaces
 kubectl create ns icap-adaptation
@@ -117,8 +127,7 @@ if [[ "$ICAP_FLAVOUR" == "golang" ]]; then
 	kubectl create -n icap-adaptation secret generic minio-credentials --from-literal=username='minio' --from-literal=password=$MINIO_SECRET
 
 	# deploy new Go services
-	GO_INFRA_BRANCH=${GO_INFRA_BRANCH:-main}
-	git clone https://github.com/k8-proxy/go-k8s-infra.git -b $GO_INFRA_BRANCH && pushd go-k8s-infra
+	git clone https://github.com/k8-proxy/go-k8s-infra.git -b $BRANCH_NAME && pushd go-k8s-infra
 
 	# Scale the existing adaptation service to 0
 	kubectl -n icap-adaptation scale --replicas=0 deployment/adaptation-service
@@ -172,13 +181,13 @@ INSTALL_FILEDROP_UI=${INSTALL_FILEDROP_UI:-"true"}
 CS_API_IMAGE=${CS_API_IMAGE:-glasswallsolutions/cs-k8s-api:latest}
 # install cs-k8s-api
 if [[ "${INSTALL_CSAPI}" == "true" ]]; then
-	git clone https://github.com/k8-proxy/cs-k8s-api && pushd cs-k8s-api
+	git clone https://github.com/k8-proxy/cs-k8s-api -b $BRANCH_NAME && pushd cs-k8s-api
   	helm upgrade --install -n icap-adaptation rebuild-api infra/kubernetes/chart --atomic && popd
 fi
 
 # install filedrop UI
 if [[ "${INSTALL_FILEDROP_UI}" == "true" ]]; then
-	git clone https://github.com/k8-proxy/k8-rebuild.git && pushd k8-rebuild
+	git clone https://github.com/k8-proxy/k8-rebuild.git -b $BRANCH_NAME && pushd k8-rebuild
 	# build images
 	rm -rf kubernetes/charts/sow-rest-api-0.1.0.tgz
 	rm -rf kubernetes/charts/nginx-8.2.0.tgz

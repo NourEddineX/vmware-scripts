@@ -14,7 +14,7 @@
         "region": "{{user `region`}}",
         "secret_key": "{{user `aws_secret_key`}}",
         "ssh_username": "ubuntu",
-        "ssh_timeout": "10m",
+        "ssh_timeout": "5m",
         "type": "amazon-ebs",
         "ami_regions": "{{user `extra_regions`}}",
         "security_group_ids": "{{user `security_group_ids`}}",
@@ -31,11 +31,11 @@
             "OS_Version": "Ubuntu-20.04",
             "Base_AMI_Name": "{{ .SourceAMIName }}",
             "Name": "{{user `vm_name`}}",
-            "CS_K8S_API": "{{user `cs_api` }}",
+            "REST_API": "{{user `cs_api` }}",
             "Filedrop_UI": "{{user `filedrop_ui`}}",
             "K8S_Flavour": "k3s",
-            "ICAP_Flavour": "{{user `icap_flavour`}}",
-            "SDK": "eval",
+            "ICAP_FLAVOUR": "{{user `icap_flavour`}}",
+            "SDK": "prod",
             "Github_Run_id": "{{user `github_sha`}}",
             "M_UI": "{{user `install_m_ui`}}"
         },
@@ -58,10 +58,6 @@
     ],
       "provisioners": [
         {
-            "type": "shell",
-            "script": "./scripts/config/init-config.sh"
-        },
-        {
             "type": "file",
             "source":"../scripts/agent",
             "destination":"/tmp/"
@@ -80,11 +76,6 @@
             ]
         },
         {
-            "type": "shell",
-            "script": "./scripts/cleanup/cleanup.sh",
-            "execute_command": "chmod +x {{.Path}}; sudo {{.Path}}"
-        },
-        {
             "type": "shell-local",
             "inline_shebang": "/bin/bash",
             "inline": [
@@ -98,7 +89,7 @@
         {
             "type": "shell-local",
             "script": "ova-check.sh",
-            "environment_vars": ["OVA_NAME=icap-server-{{user `github_sha`}}.ova", "VM_NAME={{user `vm_name`}}", "CREATE_OVA={{user `create_ova`}}", "FILEDROP_UI={{user `filedrop_ui`}}", "CS_K8S_API={{user `cs_api`}}", "INSTALL_M_UI={{user `install_m_ui`}}", "ICAP_FLAVOUR={{user `icap_flavour`}}", "PUBLIC=true"]
+            "environment_vars": ["OVA_NAME=icap-server-{{user `github_sha`}}.ova", "VM_NAME={{user `vm_name`}}", "CREATE_OVA={{user `create_ova`}}", "FILEDROP_UI={{user `filedrop_ui`}}", "CS_K8S_API={{user `cs_api`}}", "INSTALL_M_UI={{user `install_m_ui`}}", "ICAP_FLAVOUR={{user `icap_flavour`}}"]
         }
     ]
 }

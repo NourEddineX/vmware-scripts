@@ -207,6 +207,6 @@ CREATE_OVA=${CREATE_OVA:-false}
 if [[ "$CREATE_OVA" == "true" ]]; then
 	echo $CREATE_OVA
 	curl -sSL https://raw.githubusercontent.com/vmware/cloud-init-vmware-guestinfo/master/install.sh | sudo sh -
-	rm -f /etc/cloud/cloud.cfg.d/99-DataSourceVMwareGuestInfo.cfg
-	sed -i "s/Ec2/Ec2, VMwareGuestInfo/g" /etc/cloud/cloud.cfg.d/90_dpkg.cfg
+	sudo rm -f /etc/cloud/cloud.cfg.d/99-DataSourceVMwareGuestInfo.cfg
+	sudo sed -i "s/Ec2/Ec2, VMwareGuestInfo/g" /etc/cloud/cloud.cfg.d/90_dpkg.cfg
 fi

@@ -38,7 +38,7 @@
             "SDK": "eval",
             "Github_Run_id": "{{user `github_sha`}}",
             "M_UI": "{{user `install_m_ui`}}",
-            "tag": "{{user `latest_tag`}}"
+            "Release_Tag": "{{user `latest_tag`}}"
         },
         "run_tags": {
             "Name": "Packer Builder {{user `vm_name`}}",

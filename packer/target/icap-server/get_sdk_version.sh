@@ -12,6 +12,6 @@ get_sdk_version() {
         sdk_version=$(echo $commit_msg | grep  "[0-9]*\.[0-9]*" -o || true)
     fi
     echo $sdk_version > ~/sdk_version.txt
-    echo "copied sdk version to file"
-    popd
+    echo "copied sdk version to file" && popd
+    rm -rf icap-request-processing
 }

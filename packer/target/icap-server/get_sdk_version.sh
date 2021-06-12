@@ -7,10 +7,11 @@ get_sdk_version() {
     git clone https://github.com/$repo_name && pushd icap-request-processing && git checkout ${commit_sha}
     submodule_status=$(git submodule status)
     commit_msg=$(git log -1 --format=%s lib)
-    sdk_version=$(echo $submodule_status | grep  "[0-9]*\.[0-9]*" -o)
+    sdk_version=$(echo $submodule_status | grep  "[0-9]*\.[0-9]*" -o || true)
     if [[ -z "$sdk_version" ]]; then
-        sdk_version=$(echo $commit_msg | grep  "[0-9]*\.[0-9]*" -o)
+        sdk_version=$(echo $commit_msg | grep  "[0-9]*\.[0-9]*" -o || true)
     fi
     echo $sdk_version > ~/sdk_version.txt
+    echo "copied sdk version to file"
     popd
 }

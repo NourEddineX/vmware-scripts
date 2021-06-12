@@ -83,7 +83,7 @@
         {
             "type": "file",
             "source": "/home/ubuntu/sdk_version.txt",
-            "destination": "../../artifacts_staging/prod_sdk_version.txt",
+            "destination": "../../artifacts_staging/sdk_version.txt",
             "direction": "download"
         },
         {

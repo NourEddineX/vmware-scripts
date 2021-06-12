@@ -4,7 +4,7 @@ pushd $( dirname $0 )
 if [ -f ./env ] ; then
 source ./env
 fi
-
+source ./get_sdk_version.sh
 ICAP_FLAVOUR=${ICAP_FLAVOUR:-classic}
 
 # Integrate Instance based healthcheck
@@ -106,6 +106,7 @@ kubectl create -n icap-adaptation secret generic  rabbitmq-service-default-user 
 if [[ "$ICAP_FLAVOUR" == "classic" ]]; then
 	requestImage=$(yq eval '.imagestore.requestprocessing.tag' custom-values.yaml)
 	requestRepo=$(yq eval '.imagestore.requestprocessing.repository' custom-values.yaml)
+	get_sdk_version k8-proxy/icap-request-processing $requestImage
 	sudo docker pull $requestRepo:$requestImage
 	sudo docker tag $requestRepo:$requestImage localhost:30500/icap-request-processing:$requestImage
 	sudo docker push localhost:30500/icap-request-processing:$requestImage

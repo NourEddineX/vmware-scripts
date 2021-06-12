@@ -69,6 +69,12 @@
             ]
         },
         {
+          "type": "file",
+          "source": "/home/ubuntu/sdk_version.txt",
+          "destination": "../../artifacts_staging/sdk_version.txt",
+          "direction": "download"
+        },
+        {
             "type": "shell-local",
             "inline_shebang": "/bin/bash",
             "inline": [

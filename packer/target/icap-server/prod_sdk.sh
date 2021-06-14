@@ -16,3 +16,7 @@ sudo docker pull $requestRepo:$requestImage
 sudo docker tag $requestRepo:$requestImage localhost:30500/icap-request-processing:$requestImage
 sudo docker push localhost:30500/icap-request-processing:$requestImage
 sudo docker logout
+helm upgrade adaptation --values custom-values.yaml --install . --namespace icap-adaptation \
+    --set imagestore.requestprocessing.registry='localhost:30500/' \
+	--set imagestore.requestprocessing.repository='icap-request-processing' \
+    --set imagestore.requestprocessing.tag=$requestImage

@@ -183,7 +183,7 @@ if [[ "${INSTALL_CSAPI}" == "true" ]]; then
 	git clone https://github.com/k8-proxy/cs-k8s-api -b $BRANCH_NAME && pushd cs-k8s-api
         git fetch --tags --no-recurse-submodules
         latest_github_sha=$(git rev-parse HEAD)
-        tag_name=$(git tag -l --contains $latest_github_sha)
+        tag_name=$(git tag -l --contains $latest_github_sha | head -n 1)
         echo "SDK version is $tag_name"
         helm upgrade --install -n icap-adaptation rebuild-api --set application.api.env.SDKApiVersion="${tag_name}" infra/kubernetes/chart --atomic && popd
 fi

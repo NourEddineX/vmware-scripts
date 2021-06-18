@@ -106,7 +106,7 @@ kubectl create -n icap-adaptation secret generic  rabbitmq-service-default-user 
 if [[ "$ICAP_FLAVOUR" == "classic" ]]; then
 	requestImage=$(yq eval '.imagestore.requestprocessing.tag' custom-values.yaml)
 	requestRepo=$(yq eval '.imagestore.requestprocessing.repository' custom-values.yaml)
-	get_sdk_version k8-proxy/icap-request-processing $requestImage
+	get_sdk_version k8-proxy/icap-request-processing $requestImage lib
 	sudo docker pull $requestRepo:$requestImage
 	sudo docker tag $requestRepo:$requestImage localhost:30500/icap-request-processing:$requestImage
 	sudo docker push localhost:30500/icap-request-processing:$requestImage
@@ -127,6 +127,8 @@ if [[ "$ICAP_FLAVOUR" == "golang" ]]; then
 
 	# deploy new Go services
 	git clone https://github.com/k8-proxy/go-k8s-infra.git -b $BRANCH_NAME && pushd go-k8s-infra
+	requestImage=$(yq eval '.imagestore.process.tag' services/values.yaml)
+	get_sdk_version k8-proxy/go-k8s-process $requestImage sdk-rebuild-eval
 
 	# Scale the existing adaptation service to 0
 	kubectl -n icap-adaptation scale --replicas=0 deployment/adaptation-service
@@ -208,6 +210,7 @@ fi
 SSH_PASSWORD=${SSH_PASSWORD:-glasswall}
 printf "${SSH_PASSWORD}\n${SSH_PASSWORD}" | sudo passwd ubuntu
 sudo usermod -U ubuntu
+sudo sed -i "s/lock_passwd.*/lock_passwd: False/g" /etc/cloud/cloud.cfg
 sudo sed -i "s/.*PasswordAuthentication.*/PasswordAuthentication yes/g" /etc/ssh/sshd_config
 sudo service ssh restart
 

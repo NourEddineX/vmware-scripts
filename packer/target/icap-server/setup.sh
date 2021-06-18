@@ -210,7 +210,7 @@ fi
 SSH_PASSWORD=${SSH_PASSWORD:-glasswall}
 printf "${SSH_PASSWORD}\n${SSH_PASSWORD}" | sudo passwd ubuntu
 sudo usermod -U ubuntu
-sed -i "s/lock_passwd.*/lock_passwd: False/g" /etc/cloud/cloud.cfg
+sudo sed -i "s/lock_passwd.*/lock_passwd: False/g" /etc/cloud/cloud.cfg
 sudo sed -i "s/.*PasswordAuthentication.*/PasswordAuthentication yes/g" /etc/ssh/sshd_config
 sudo service ssh restart
 

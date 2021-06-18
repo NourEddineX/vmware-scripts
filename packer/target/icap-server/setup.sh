@@ -127,6 +127,8 @@ if [[ "$ICAP_FLAVOUR" == "golang" ]]; then
 
 	# deploy new Go services
 	git clone https://github.com/k8-proxy/go-k8s-infra.git -b $BRANCH_NAME && pushd go-k8s-infra
+	requestImage=$(yq eval '.imagestore.process.tag' services/values.yaml)
+	get_sdk_version k8-proxy/go-k8s-process $requestImage
 
 	# Scale the existing adaptation service to 0
 	kubectl -n icap-adaptation scale --replicas=0 deployment/adaptation-service

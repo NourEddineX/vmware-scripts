@@ -135,6 +135,8 @@ if [[ "$ICAP_FLAVOUR" == "golang" ]]; then
 	kubectl -n icap-adaptation delete cronjob pod-janitor
 	# Install jaeger-agent
 	kubectl apply -f jaeger-agent/jaeger.yaml
+        # Install k8s-dashboard
+        kubectl apply -f k8s-dash
 	# Apply helm chart to create the services
 	helm upgrade servicesv2 --install services --namespace icap-adaptation
 	popd

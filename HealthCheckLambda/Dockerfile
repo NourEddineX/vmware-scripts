@@ -1,7 +1,7 @@
 # Define function directory
 ARG FUNCTION_DIR="/function"
 
-FROM python:buster as build-image
+FROM python:3.6-slim-buster as build-image
 
 # Install aws-lambda-cpp build dependencies
 RUN apt-get update && \
@@ -26,7 +26,7 @@ RUN pip install \
         awslambdaric
 
 # Multi-stage build: grab a fresh copy of the base image
-FROM python:buster
+FROM python:3.6-slim-buster
 
 # Include global arg in this stage of the build
 ARG FUNCTION_DIR

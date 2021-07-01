@@ -194,7 +194,7 @@ if [[ "${INSTALL_CSAPI}" == "true" ]]; then
         fi
 
         echo "SDK version is $tag_name"
-        helm upgrade --install -n icap-adaptation rebuild-api --set application.api.env.SDKApiVersion="${tag_name}",resources.api.limits.cpu="1500m",resources.api.requests.cpu="1000m",resources.api.requests.memory="1000Mi",replicaCount="2" infra/kubernetes/chart && popd
+        helm upgrade --install -n icap-adaptation rebuild-api --set application.api.env.SDKApiVersion="${tag_name}",resources.api.limits.cpu="1500m",resources.api.requests.cpu="1000m",resources.api.requests.memory="1000Mi",replicaCount="4" infra/kubernetes/chart && popd
 fi
 
 # install filedrop UI

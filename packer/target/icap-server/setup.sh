@@ -122,7 +122,7 @@ if [[ "$ICAP_FLAVOUR" == "golang" ]]; then
 	kubectl create ns minio
 	kubectl create ns jaeger
 	helm repo add minio https://helm.min.io/
-	helm install -n minio --set accessKey=minio,secretKey=$MINIO_SECRET,buckets[0].name=sourcefiles,buckets[0].policy=none,buckets[0].purge=false,buckets[1].name=cleanfiles,buckets[1].policy=none,buckets[1].purge=false,fullnameOverride=minio-server,persistence.enabled=false,service.type=LoadBalancer minio/minio --generate-name
+	helm install -n minio --set accessKey=minio,secretKey=$MINIO_SECRET,buckets[0].name=sourcefiles,buckets[0].policy=none,buckets[0].purge=false,buckets[1].name=cleanfiles,buckets[1].policy=none,buckets[1].purge=false,fullnameOverride=minio-server,persistence.enabled=true,persistence.size=20Gi,service.type=LoadBalancer minio/minio --generate-name
 	kubectl create -n icap-adaptation secret generic minio-credentials --from-literal=username='minio' --from-literal=password=$MINIO_SECRET
 
 	# deploy new Go services

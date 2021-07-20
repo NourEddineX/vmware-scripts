@@ -5,7 +5,6 @@ if [ -f ./env ] ; then
 source ./env
 fi
 source ./get_sdk_version.sh
-source ./get_expiry_date.sh
 ICAP_FLAVOUR=${ICAP_FLAVOUR:-classic}
 
 # Integrate Instance based healthcheck
@@ -108,7 +107,6 @@ if [[ "$ICAP_FLAVOUR" == "classic" ]]; then
 	requestImage=$(yq eval '.imagestore.requestprocessing.tag' custom-values.yaml)
 	requestRepo=$(yq eval '.imagestore.requestprocessing.repository' custom-values.yaml)
 	get_sdk_version k8-proxy/icap-request-processing $requestImage lib
-	get_expiry_date k8-proxy/icap-request-processing $requestImage lib
 	sudo docker pull $requestRepo:$requestImage
 	sudo docker tag $requestRepo:$requestImage localhost:30500/icap-request-processing:$requestImage
 	sudo docker push localhost:30500/icap-request-processing:$requestImage
@@ -131,7 +129,6 @@ if [[ "$ICAP_FLAVOUR" == "golang" ]]; then
 	git clone https://github.com/k8-proxy/go-k8s-infra.git -b $BRANCH_NAME && pushd go-k8s-infra
 	requestImage=$(yq eval '.imagestore.process.tag' services/values.yaml)
 	get_sdk_version k8-proxy/go-k8s-process $requestImage sdk-rebuild-eval
-	get_expiry_date k8-proxy/go-k8s-process $requestImage sdk-rebuild-eval
 
 	# Scale the existing adaptation service to 0
 	kubectl -n icap-adaptation scale --replicas=0 deployment/adaptation-service

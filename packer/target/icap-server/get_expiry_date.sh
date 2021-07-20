@@ -7,11 +7,7 @@ get_expiry_date() {
     sub_mod=$3
     commit_sha=$(echo $image_tag | cut -d"-" -f2)
     folder_name=$(echo $repo_name | cut -d"/" -f2)
-    if [[ "$sub_mod" = "lib" ]]; then
-        git clone https://github.com/$repo_name --recursive --branch main && pushd $folder_name && git checkout $commit_sha
-    else
-        git clone https://github.com/$repo_name --recursive --branch main && pushd $folder_name && git checkout $commit_sha
-    fi
+    git clone https://github.com/$repo_name --recursive --branch main && pushd $folder_name && git checkout $commit_sha
     pushd $sub_mod
     last_updated_date=$(git log -1 --date iso --format=%cd libs/rebuild/linux/libglasswall.classic.so)
     echo $last_updated_date

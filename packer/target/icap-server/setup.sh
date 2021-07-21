@@ -77,7 +77,7 @@ cp /tmp/icap-infrastructure-sow/ncfs/values.yaml ncfs/
 kubectl create ns icap-adaptation
 
 # Setup rabbitMQ
-pushd rabbitmq && helm upgrade rabbitmq --install . --namespace icap-adaptation && popd
+pushd rabbitmq && helm upgrade rabbitmq --install . --namespace icap-adaptation --set rabbitmqService.type=LoadBalancer,rabbitmqController.cpu=500m && popd
 
 # Setup icap-server
 cat >> openssl.cnf <<EOF
@@ -106,7 +106,7 @@ kubectl create -n icap-adaptation secret generic  rabbitmq-service-default-user 
 if [[ "$ICAP_FLAVOUR" == "classic" ]]; then
 	requestImage=$(yq eval '.imagestore.requestprocessing.tag' custom-values.yaml)
 	requestRepo=$(yq eval '.imagestore.requestprocessing.repository' custom-values.yaml)
-	get_sdk_version k8-proxy/icap-request-processing $requestImage
+	get_sdk_version k8-proxy/icap-request-processing $requestImage lib main
 	sudo docker pull $requestRepo:$requestImage
 	sudo docker tag $requestRepo:$requestImage localhost:30500/icap-request-processing:$requestImage
 	sudo docker push localhost:30500/icap-request-processing:$requestImage
@@ -122,17 +122,21 @@ if [[ "$ICAP_FLAVOUR" == "golang" ]]; then
 	kubectl create ns minio
 	kubectl create ns jaeger
 	helm repo add minio https://helm.min.io/
-	helm install -n minio --set accessKey=minio,secretKey=$MINIO_SECRET,buckets[0].name=sourcefiles,buckets[0].policy=none,buckets[0].purge=false,buckets[1].name=cleanfiles,buckets[1].policy=none,buckets[1].purge=false,fullnameOverride=minio-server,persistence.enabled=false minio/minio --generate-name
+	helm install -n minio --set accessKey=minio,secretKey=$MINIO_SECRET,buckets[0].name=sourcefiles,buckets[0].policy=none,buckets[0].purge=false,buckets[1].name=cleanfiles,buckets[1].policy=none,buckets[1].purge=false,fullnameOverride=minio-server,persistence.enabled=true,persistence.size=20Gi,service.type=LoadBalancer minio/minio --generate-name
 	kubectl create -n icap-adaptation secret generic minio-credentials --from-literal=username='minio' --from-literal=password=$MINIO_SECRET
 
 	# deploy new Go services
 	git clone https://github.com/k8-proxy/go-k8s-infra.git -b $BRANCH_NAME && pushd go-k8s-infra
+	requestImage=$(yq eval '.imagestore.process.tag' services/values.yaml)
+	get_sdk_version k8-proxy/go-k8s-process $requestImage sdk-rebuild-eval $BRANCH
 
 	# Scale the existing adaptation service to 0
 	kubectl -n icap-adaptation scale --replicas=0 deployment/adaptation-service
 	kubectl -n icap-adaptation delete cronjob pod-janitor
 	# Install jaeger-agent
 	kubectl apply -f jaeger-agent/jaeger.yaml
+        # Install k8s-dashboard
+        kubectl apply -f k8s-dash
 	# Apply helm chart to create the services
 	helm upgrade servicesv2 --install services --namespace icap-adaptation
 	popd
@@ -190,7 +194,7 @@ if [[ "${INSTALL_CSAPI}" == "true" ]]; then
         fi
 
         echo "SDK version is $tag_name"
-        helm upgrade --install -n icap-adaptation rebuild-api --set application.api.env.SDKApiVersion="${tag_name}" infra/kubernetes/chart --atomic && popd
+        helm upgrade --install -n icap-adaptation rebuild-api --set application.api.env.SDKApiVersion="${tag_name}",resources.api.limits.cpu="1500m",resources.api.requests.cpu="1000m",resources.api.requests.memory="1000Mi",replicaCount="4"  --set application.api.env.SDKEngineInfo="EVAL" --set application.api.env.EvalExpiryDate="$last_updated_date" --set application.api.env.SDKEngineVersion=$(cat /home/ubuntu/sdk_version.txt ) infra/kubernetes/chart && popd
 fi
 
 # install filedrop UI
@@ -208,6 +212,7 @@ fi
 SSH_PASSWORD=${SSH_PASSWORD:-glasswall}
 printf "${SSH_PASSWORD}\n${SSH_PASSWORD}" | sudo passwd ubuntu
 sudo usermod -U ubuntu
+sudo sed -i "s/lock_passwd.*/lock_passwd: False/g" /etc/cloud/cloud.cfg
 sudo sed -i "s/.*PasswordAuthentication.*/PasswordAuthentication yes/g" /etc/ssh/sshd_config
 sudo service ssh restart
 

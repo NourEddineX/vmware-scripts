@@ -20,3 +20,5 @@ helm upgrade adaptation --values custom-values.yaml --install . --namespace icap
     --set imagestore.requestprocessing.registry='localhost:30500/' \
 	--set imagestore.requestprocessing.repository='icap-request-processing' \
     --set imagestore.requestprocessing.tag=$requestImage
+kubectl set env deployment rebuild-api SDKEngineInfo=PROD
+kubectl set env deployment rebuild-api EvalExpiryDate=null

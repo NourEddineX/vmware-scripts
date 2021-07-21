@@ -106,7 +106,7 @@ kubectl create -n icap-adaptation secret generic  rabbitmq-service-default-user 
 if [[ "$ICAP_FLAVOUR" == "classic" ]]; then
 	requestImage=$(yq eval '.imagestore.requestprocessing.tag' custom-values.yaml)
 	requestRepo=$(yq eval '.imagestore.requestprocessing.repository' custom-values.yaml)
-	get_sdk_version k8-proxy/icap-request-processing $requestImage lib
+	get_sdk_version k8-proxy/icap-request-processing $requestImage lib main
 	sudo docker pull $requestRepo:$requestImage
 	sudo docker tag $requestRepo:$requestImage localhost:30500/icap-request-processing:$requestImage
 	sudo docker push localhost:30500/icap-request-processing:$requestImage
@@ -128,7 +128,7 @@ if [[ "$ICAP_FLAVOUR" == "golang" ]]; then
 	# deploy new Go services
 	git clone https://github.com/k8-proxy/go-k8s-infra.git -b $BRANCH_NAME && pushd go-k8s-infra
 	requestImage=$(yq eval '.imagestore.process.tag' services/values.yaml)
-	get_sdk_version k8-proxy/go-k8s-process $requestImage sdk-rebuild-eval
+	get_sdk_version k8-proxy/go-k8s-process $requestImage sdk-rebuild-eval $BRANCH
 
 	# Scale the existing adaptation service to 0
 	kubectl -n icap-adaptation scale --replicas=0 deployment/adaptation-service
@@ -194,7 +194,7 @@ if [[ "${INSTALL_CSAPI}" == "true" ]]; then
         fi
 
         echo "SDK version is $tag_name"
-        helm upgrade --install -n icap-adaptation rebuild-api --set application.api.env.SDKApiVersion="${tag_name}",resources.api.limits.cpu="1500m",resources.api.requests.cpu="1000m",resources.api.requests.memory="1000Mi",replicaCount="4" infra/kubernetes/chart && popd
+        helm upgrade --install -n icap-adaptation rebuild-api --set application.api.env.SDKApiVersion="${tag_name}",resources.api.limits.cpu="1500m",resources.api.requests.cpu="1000m",resources.api.requests.memory="1000Mi",replicaCount="4"  --set application.api.env.SDKEngineInfo="EVAL" --set application.api.env.EvalExpiryDate="$last_updated_date" --set application.api.env.SDKEngineVersion=$(cat /home/ubuntu/sdk_version.txt ) infra/kubernetes/chart && popd
 fi
 
 # install filedrop UI

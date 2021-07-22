@@ -9,6 +9,14 @@ echo "Dialog successfully installed"
 sleep 1
 }
 
+function disable_kmsg () {
+echo "Disabling kernel message console logging."
+sudo tee /etc/sysctl.d/99-kmsg.conf <<EOF
+kernel.printk=1
+EOF
+sudo sysctl --system > /dev/null 2>&1
+}
+
 function main_dialog () {
 choice=$( dialog $DIALOG_OPTS --menu Wizard -1 -1 5 1 'Configure network' 2 'Change password' )
 case "$choice" in
@@ -72,6 +80,7 @@ dialog $DIALOG_OPTS --msgbox "$1" 0 0
 
  
 which dialog || install_dialog
+[[ "$(cut -f1 < /proc/sys/kernel/printk)" == "1" ]] || disable_kmsg
 true
 while [ "$?" == "0" ] ; do
 main_dialog
